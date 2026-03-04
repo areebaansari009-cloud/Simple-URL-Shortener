@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 
 app = Flask(__name__)
 CORS(app)
-init_db()
+
 
 # Configuration
 DATABASE = 'urls.db'
@@ -42,6 +42,7 @@ def init_db():
     except sqlite3.Error as e:
         print(f"❌ Problem in database: {e}")
         raise
+        init_db()
 
 def is_valid_short_code(code):
     """Only numbers and letters are allowed for security"""
@@ -602,5 +603,6 @@ HTML_TEMPLATE = '''
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
 
 
