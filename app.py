@@ -10,11 +10,12 @@ from urllib.parse import urlparse
 
 app = Flask(__name__)
 CORS(app)
+init_db()
 
 # Configuration
 DATABASE = 'urls.db'
 SHORT_CODE_LENGTH = 6
-BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
+BASE_URL = os.environ.get('RAILWAY_STATIC_URL', '')
 
 def get_db():
     """Database connection helper - automatically closes connection"""
@@ -105,7 +106,7 @@ def shorten_url():
     
     # make it Validate 
     if not is_valid_url(original_url):
-        return jsonify({'error': 'Galat URL format'}), 400
+        return jsonify({'error': 'wrong URL format'}), 400
     
     # Check that this URL already exists or not 
     with get_db() as conn:
@@ -117,10 +118,10 @@ def shorten_url():
             short_code = existing['short_code']
             return jsonify({
                 'short_code': short_code,
-                'short_url': f'{BASE_URL}/{short_code}',
+                'short_url': request.host_url + short_code,
                 'original_url': original_url,
                 'created': False,
-                'message': 'Yeh URL pehle se exist karti hai'
+                'message': 'This URL already exists'
             }), 200
     
     # Make new code
@@ -599,7 +600,7 @@ HTML_TEMPLATE = '''
 '''
 
 if __name__ == '__main__':
-    init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
 
