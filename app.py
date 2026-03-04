@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, redirect, render_template_string, abort
+from flask import Flask, request, jsonify, redirect, render_template_string, abort, url_for
 from flask_cors import CORS
 import sqlite3
 import string
@@ -119,7 +119,7 @@ def shorten_url():
             short_code = existing['short_code']
             return jsonify({
                 'short_code': short_code,
-                'short_url': request.host_url + short_code,
+                'short_url': url_for('redirect_to_url', short_code=short_code, _external=True),
                 'original_url': original_url,
                 'created': False,
                 'message': 'This URL already exists'
@@ -143,7 +143,7 @@ def shorten_url():
             
             return jsonify({
                 'short_code': short_code,
-                'short_url': f'{BASE_URL}/{short_code}',
+               'short_url': url_for('redirect_to_url', short_code=short_code, _external=True),
                 'original_url': original_url,
                 'created': True
             }), 201
@@ -603,6 +603,7 @@ HTML_TEMPLATE = '''
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
 
 
 
