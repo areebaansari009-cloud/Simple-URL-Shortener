@@ -19,7 +19,7 @@ BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
 def get_db():
     """Database connection helper - automatically closes connection"""
     conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row  # Is se data dictionary jaisa ban jata hai
+    conn.row_factory = sqlite3.Row  # This creates a data directory.
     return conn
 
 def init_db():
@@ -37,18 +37,18 @@ def init_db():
                 )
             ''')
             conn.commit()
-        print("✅ Database tayyar hai!")
+        print("✅ Database is ready!")
     except sqlite3.Error as e:
-        print(f"❌ Database mein masla: {e}")
+        print(f"❌ Problem in database: {e}")
         raise
 
 def is_valid_short_code(code):
-    """Sirf letters aur numbers allow hain - security k liye"""
+    """Only numbers and letters are allowed for security"""
     return bool(re.match(r'^[a-zA-Z0-9]+$', code))
 
 def generate_short_code(length=SHORT_CODE_LENGTH, max_attempts=10):
     """
-    Unique code generate karta hai. Agar collision hua toh dobara try karta hai.
+    It generate unique code. If collision will occur then will try again
     """
     characters = string.ascii_letters + string.digits
     
@@ -58,7 +58,7 @@ def generate_short_code(length=SHORT_CODE_LENGTH, max_attempts=10):
         try:
             with get_db() as conn:
                 c = conn.cursor()
-                # Pehle hi try karo insert karne ka - agar unique nahi hua toh error aayega
+                # first try to insert - if it will not unique then the error will occur
                 c.execute(
                     'INSERT INTO urls (short_code, original_url, clicks) VALUES (?, ?, ?)',
                     (code, 'PENDING', 0)
@@ -66,21 +66,21 @@ def generate_short_code(length=SHORT_CODE_LENGTH, max_attempts=10):
                 conn.commit()
                 return code
         except sqlite3.IntegrityError:
-            # Code already exist karta hai, dobara try karo
+            # code already exists... so try again
             continue
     
-    # Agar 10 baar try karne k baad bhi nahi bana toh error
+    # After trying 10 times it won't happen then error
     raise Exception("Unique code banane mein nakaami!")
 
 def normalize_url(url):
-    """URL ko sahi format mein lao"""
+    """Keep URL in correct format"""
     url = url.strip()
     if not url.startswith(('http://', 'https://')):
         url = 'https://' + url
     return url
 
 def is_valid_url(url):
-    """Check karo ke URL sahi hai ya nahi"""
+    """Check weather the URL is correct or wrong"""
     try:
         result = urlparse(url)
         return all([result.scheme in ['http', 'https'], result.netloc])
@@ -100,14 +100,14 @@ def shorten_url():
     if not data or 'url' not in data:
         return jsonify({'error': 'URL chahiye bhai!'}), 400
     
-    # URL ko sahi karo
+    # correct the URL
     original_url = normalize_url(data['url'])
     
-    # Validate karo
+    # make it Validate 
     if not is_valid_url(original_url):
         return jsonify({'error': 'Galat URL format'}), 400
     
-    # Check karo ke yeh URL pehle se toh nahi hai
+    # Check that this URL already exists or not 
     with get_db() as conn:
         c = conn.cursor()
         c.execute('SELECT short_code FROM urls WHERE original_url = ?', (original_url,))
@@ -123,13 +123,13 @@ def shorten_url():
                 'message': 'Yeh URL pehle se exist karti hai'
             }), 200
     
-    # Naya code banao
+    # Make new code
     try:
         short_code = generate_short_code()
     except Exception:
-        return jsonify({'error': 'Server busy hai, thodi dair baad try karo'}), 503
+        return jsonify({'error': 'Server is busy, try in a while'}), 503
     
-    # Database mein update karo (PENDING ki jagah asli URL)
+    # Update it's database (real URL instead of PENDING )
     try:
         with get_db() as conn:
             c = conn.cursor()
@@ -152,14 +152,14 @@ def shorten_url():
 @app.route('/<short_code>')
 def redirect_to_url(short_code):
     """Redirect short code to original URL"""
-    # Security check: sirf alphanumeric codes allow hain
+    # Security check: only alphanumeric codes are allow
     if not is_valid_short_code(short_code):
         abort(404)
     
     with get_db() as conn:
         c = conn.cursor()
         
-        # Pehle check karo ke code exist karta hai
+        # First check is code exist 
         c.execute('SELECT original_url FROM urls WHERE short_code = ?', (short_code,))
         result = c.fetchone()
         
@@ -169,7 +169,7 @@ def redirect_to_url(short_code):
         
         original_url = result['original_url']
         
-        # Click count barhao (atomic operation)
+        # Click count increase (atomic operation)
         c.execute('UPDATE urls SET clicks = clicks + 1 WHERE short_code = ?', (short_code,))
         conn.commit()
         
@@ -193,9 +193,9 @@ def get_stats(short_code):
                 'created_at': result['created_at'],
                 'clicks': result['clicks']
             }), 200
-        return jsonify({'error': 'Short code nahi mila'}), 404
+        return jsonify({'error': 'Short code not found'}), 404
 
-# Beautiful Frontend HTML Template (Same as before - yeh perfect hai!)
+# Beautiful Frontend HTML Template
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html lang="en">
@@ -602,3 +602,4 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
